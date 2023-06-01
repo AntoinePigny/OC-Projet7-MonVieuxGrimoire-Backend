@@ -1,7 +1,6 @@
+require('dotenv').config()
 const http = require('http')
 const app = require('./app')
-require('dotenv').config()
-console.log(process.env.MONGO_URI)
 const hostname = '127.0.0.1'
 
 function normalizePort(val) {
