@@ -1,4 +1,5 @@
-const asyncHandler = require('express-async-handler')
+const generateToken = require('../utils/generateToken')
+const User = require('../models/User')
 
 /**
  * desc : Auth user / set token
@@ -8,7 +9,20 @@ const asyncHandler = require('express-async-handler')
  * @param {*} res
  */
 async function loginUser(req, res) {
-   res.status(200).json({ message: 'Auth user' })
+   const { email, password } = req.body
+
+   const user = await User.findOne({ email })
+
+   if (user && (await user.matchPasswords(password))) {
+      generateToken(res, user._id)
+      res.status(201).json({
+         _id: user._id,
+         email: user.email,
+      })
+   } else {
+      res.status(401)
+      throw new Error('Email/Mot de passe invalide')
+   }
 }
 /**
  * desc : Register new user
@@ -18,7 +32,29 @@ async function loginUser(req, res) {
  * @param {*} res
  */
 async function registerUser(req, res) {
-   res.status(200).json({ message: 'Register user' })
+   const { email, password } = req.body
+   const userExists = await User.findOne({ email })
+
+   if (userExists) {
+      res.status(400)
+      throw new Error(`L'utilisateur existe déjà`)
+   }
+
+   const user = await User.create({
+      email,
+      password,
+   })
+
+   if (user) {
+      generateToken(res, user._id)
+      res.status(201).json({
+         _id: user._id,
+         email: user.email,
+      })
+   } else {
+      res.status(400)
+      throw new Error('Données utilisateur invalides')
+   }
 }
 
 module.exports = { loginUser, registerUser }

@@ -3,10 +3,14 @@ const mongoose = require('mongoose')
 const userRoutes = require('./routes/userRoutes')
 const { notFound, errorHandler } = require('./middleware/errorMiddleware')
 const connectDB = require('./config/db')
+const cookieParser = require('cookie-parser')
 
 connectDB()
 const app = express()
 app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
+app.use(cookieParser())
 
 app.use((req, res, next) => {
    res.setHeader('Access-Control-Allow-Origin', '*')
@@ -17,7 +21,6 @@ app.use((req, res, next) => {
    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
    next()
 })
-
 app.use('/api/auth', userRoutes)
 
 app.get('/api/books', (req, res, next) => {
