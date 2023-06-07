@@ -14,10 +14,10 @@ async function loginUser(req, res) {
    const user = await User.findOne({ email })
 
    if (user && (await user.matchPasswords(password))) {
-      generateToken(res, user._id)
       res.status(201).json({
-         _id: user._id,
+         userId: user._id,
          email: user.email,
+         token: generateToken(user._id),
       })
    } else {
       res.status(401)
@@ -46,10 +46,10 @@ async function registerUser(req, res) {
    })
 
    if (user) {
-      generateToken(res, user._id)
       res.status(201).json({
-         _id: user._id,
+         userId: user._id,
          email: user.email,
+         token: generateToken(user._id),
       })
    } else {
       res.status(400)
