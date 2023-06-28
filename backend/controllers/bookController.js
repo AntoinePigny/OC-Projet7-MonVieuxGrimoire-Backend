@@ -9,7 +9,6 @@ const Book = require('../models/Book')
  */
 async function getBooks(req, res, next) {
    const books = await Book.find()
-
    if (books) {
       res.status(200).json(books)
    } else {
@@ -26,9 +25,15 @@ async function getBooks(req, res, next) {
  * @param {*} res
  */
 async function newBook(req, res) {
-   delete req.body._id
+   const bookObject = JSON.parse(req.body.book)
+   delete bookObject.userId
+   delete bookObject.averageRating
+   const initialAverageRating = bookObject.ratings[0].grade
    const book = new Book({
-      ...req.body,
+      ...bookObject,
+      userId: req.user._id,
+      imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`,
+      averageRating: initialAverageRating,
    })
    try {
       await book.save()
@@ -74,8 +79,13 @@ async function updateBook(params) {}
  */
 async function deleteBook(req, res) {
    try {
-      await Book.deleteOne({ _id: req.params.id })
-      res.status(200).json({ message: 'Livre supprimé !' })
+      const book = await Book.findOne({ _id: req.params.id })
+      if (book) {
+         await book.deleteOne()
+         res.status(200).json({ message: 'Livre supprimé !' })
+      } else {
+         res.status(400).json({ message: "Ce livre n'existe pas" })
+      }
    } catch (error) {
       res.status(400).json({ error })
    }
@@ -97,7 +107,14 @@ async function setBookRating(params) {}
  * @param {*} req
  * @param {*} res
  */
-async function getHighestRatedBooks(params) {}
+async function getHighestRatedBooks(req, res, next) {
+   try {
+      const bestBooks = await Book.find().sort({ averageRating: 'desc' }).limit(3)
+      if (bestBooks) res.status(200).json(bestBooks)
+   } catch (error) {
+      res.status(404).json(error)
+   }
+}
 
 module.exports = {
    getBooks,

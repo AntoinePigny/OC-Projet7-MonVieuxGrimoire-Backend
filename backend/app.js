@@ -5,6 +5,7 @@ const bookRoutes = require('./routes/bookRoutes')
 const { notFound, errorHandler } = require('./middleware/errorMiddleware')
 const connectDB = require('./config/db')
 const cookieParser = require('cookie-parser')
+const path = require('path')
 
 connectDB()
 const app = express()
@@ -23,15 +24,8 @@ app.use((req, res, next) => {
    next()
 })
 app.use('/api/auth', userRoutes)
-
 app.use('/api/books', bookRoutes)
-
-app.post('/api/books', (req, res, next) => {
-   console.log(req.body)
-   res.status(201).json({
-      message: 'Objet créé !',
-   })
-})
+app.use('/images', express.static(path.join(__dirname, 'images')))
 
 app.use(notFound)
 app.use(errorHandler)

@@ -10,12 +10,17 @@ const {
    setBookRating,
    getHighestRatedBooks,
 } = require('../controllers/bookController')
+const multerConfig = require('../middleware/multerConfig')
 
 const router = express.Router()
 
-router.route('/').get(getBooks).post(protect, asyncHandler(newBook))
-router.route('/:id').get(getBookById).put(protect, asyncHandler(updateBook)).delete(protect, asyncHandler(deleteBook))
+router.route('/').get(getBooks).post(protect, multerConfig, asyncHandler(newBook))
+router.get('/bestrating', asyncHandler(getHighestRatedBooks))
+router
+   .route('/:id')
+   .get(getBookById)
+   .put(protect, multerConfig, asyncHandler(updateBook))
+   .delete(protect, asyncHandler(deleteBook))
 //.post('/rating', protect, asyncHandler(setBookRating))
-router.get('/bestrating', getHighestRatedBooks)
 
 module.exports = router
