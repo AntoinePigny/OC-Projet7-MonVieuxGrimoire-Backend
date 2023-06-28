@@ -6,7 +6,17 @@ const MIME_TYPES = {
    'image/png': 'png',
 }
 
-const storage = multer.diskStorage({
+const storage = multer.memoryStorage()
+
+function filter(req, file, cb) {
+   if (file.mimetype.split('/')[0] === 'image') {
+      cb(null, true)
+   } else {
+      cb(new Error('Only images are allowed!'))
+   }
+}
+
+/* const storageAlt = multer.diskStorage({
    destination: (req, file, callback) => {
       callback(null, 'images')
    },
@@ -16,7 +26,7 @@ const storage = multer.diskStorage({
       callback(null, name + Date.now() + '.' + extension)
    },
 })
-
-const multerConfig = multer({ storage: storage }).single('image')
+ */
+const multerConfig = multer({ storage: storage, fileFilter: filter }).single('image')
 
 module.exports = multerConfig

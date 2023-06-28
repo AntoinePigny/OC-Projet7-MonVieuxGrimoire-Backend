@@ -16,11 +16,11 @@ const router = express.Router()
 
 router.route('/').get(getBooks).post(protect, multerConfig, asyncHandler(newBook))
 router.get('/bestrating', asyncHandler(getHighestRatedBooks))
+router.post('/:id/rating', protect, asyncHandler(setBookRating))
 router
    .route('/:id')
    .get(getBookById)
    .put(protect, multerConfig, asyncHandler(updateBook))
    .delete(protect, asyncHandler(deleteBook))
-//.post('/rating', protect, asyncHandler(setBookRating))
 
 module.exports = router
