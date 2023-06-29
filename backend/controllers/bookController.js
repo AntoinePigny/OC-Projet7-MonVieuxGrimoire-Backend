@@ -2,6 +2,7 @@ const Book = require('../models/Book')
 const fs = require('fs')
 const sharp = require('sharp')
 const path = require('path')
+const { error } = require('console')
 /**
  * desc : Returns all books
  * route : GET /api/books
@@ -34,16 +35,15 @@ async function newBook(req, res) {
    const book = new Book({
       ...bookObject,
       userId: req.user._id,
-      imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`,
+      imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.originalname}`,
       averageRating: initialAverageRating,
    })
    try {
-      await sharp(req.file.buffer)
-         .resize({
-            width: 400,
-            fit: contain,
-         })
-         .toFile(`images/${req.file.filename}`)
+      try {
+         await sharp(req.file.buffer).resize(400).toFile(`./images/${req.file.originalname}`)
+      } catch (error) {
+         console.log(error, 'Error Sharp')
+      }
       await book.save()
       res.status(201).json({ message: 'Livre enregistré !' })
    } catch (error) {
@@ -80,7 +80,7 @@ async function updateBook(req, res, next) {
    const bookObject = req.file
       ? {
            ...JSON.parse(req.body.book),
-           imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`,
+           imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.originalname}`,
         }
       : { ...req.body }
    delete bookObject.userId
@@ -90,7 +90,11 @@ async function updateBook(req, res, next) {
          if (book.userId != req.user._id) {
             res.status(403).json({ message: 'Requête non autorisée' })
          } else {
-            await sharp(req.file.buffer).resize(400).toFile(`../images/${req.file.originalname}`)
+            try {
+               await sharp(req.file.buffer).resize(400).toFile(`./images/${req.file.originalname}`)
+            } catch (error) {
+               console.log(error, 'Error Sharp')
+            }
             await Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
             res.status(200).json({ message: 'Livre modifié avec succès !' })
          }
@@ -112,6 +116,7 @@ async function updateBook(req, res, next) {
 async function deleteBook(req, res) {
    try {
       const book = await Book.findOne({ _id: req.params.id })
+
       if (book && book.userId == req.user._id) {
          const filename = book.imageUrl.split('/images/')[1]
          fs.unlink(`images/${filename}`, async () => {
@@ -138,30 +143,30 @@ async function deleteBook(req, res) {
 async function setBookRating(req, res, next) {
    try {
       const book = await Book.findOne({ _id: req.params.id })
-      console.log(book)
-      if (book) {
-         const currentUserId = req.user._id
-         const oldRating = book.ratings.find((rating) => rating.userId === currentUserId)
-         if (oldRating) {
-            return res.status(400).json({ message: 'Note déjà présente pour cet utilisateur' })
-         } else {
-            book.ratings.push({
-               userId: currentUserId,
-               grade: req.body.rating,
-            })
-         }
 
-         const totalRatings = book.ratings.length
-         const sumRatings = book.ratings.reduce((sum, rating) => sum + rating.grade, 0)
-         const averageRating = Math.round(sumRatings / totalRatings)
-         book.averageRating = averageRating
+      if (!book) return
 
-         try {
-            await book.save()
-            res.status(200).json(book, { message: 'Note enregistrée avec succès' })
-         } catch (error) {
-            res.status(400).json({ error })
-         }
+      const oldRating = await book.ratings.find((rating) => rating.userId === req.user._id)
+
+      if (oldRating) {
+         return res.status(400).json({ message: 'Note déjà présente pour cet utilisateur' })
+      } else {
+         await book.ratings.push({
+            userId: req.user._id,
+            grade: req.body.rating,
+         })
+      }
+
+      const totalRatings = await book.ratings.length
+      const sumRatings = await book.ratings.reduce((sum, rating) => sum + rating.grade, 0)
+      const averageRating = Math.round(sumRatings / totalRatings)
+      book.averageRating = averageRating
+
+      try {
+         await book.save()
+         res.status(200).json(book)
+      } catch (error) {
+         res.status(400).json({ error })
       }
    } catch (error) {
       res.status(400).json({ error })
