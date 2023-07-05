@@ -10,7 +10,7 @@ const { error } = require('console')
  * @param {*} req
  * @param {*} res
  */
-async function getBooks(req, res, next) {
+async function getBooks(_, res, _) {
    const books = await Book.find()
    if (books) {
       res.status(200).json(books)
@@ -28,9 +28,8 @@ async function getBooks(req, res, next) {
  * @param {*} res
  */
 async function newBook(req, res) {
-   const bookObject = JSON.parse(req.body.book)
-   delete bookObject.userId
-   delete bookObject.averageRating
+   const { userId, averageRating, ...bookObject } = JSON.parse(req.body.book)
+
    const initialAverageRating = bookObject.ratings[0].grade
    const book = new Book({
       ...bookObject,
@@ -39,11 +38,7 @@ async function newBook(req, res) {
       averageRating: initialAverageRating,
    })
    try {
-      try {
-         await sharp(req.file.buffer).resize(400).toFile(`./images/${req.file.originalname}`)
-      } catch (error) {
-         console.log(error, 'Error Sharp')
-      }
+      await sharp(req.file.buffer).resize(400).toFile(`./images/${req.file.originalname}`)
       await book.save()
       res.status(201).json({ message: 'Livre enregistré !' })
    } catch (error) {
@@ -76,7 +71,7 @@ async function getBookById(req, res) {
  * @param {*} req
  * @param {*} res
  */
-async function updateBook(req, res, next) {
+async function updateBook(req, res, _) {
    const bookObject = req.file
       ? {
            ...JSON.parse(req.body.book),
@@ -85,24 +80,20 @@ async function updateBook(req, res, next) {
       : { ...req.body }
    delete bookObject.userId
    const book = await Book.findOne({ _id: req.params.id })
+
+   if (book.userId != req.user._id) {
+      return res.status(403).json({ message: 'Requête non autorisée' })
+   }
+
    try {
-      try {
-         if (book.userId != req.user._id) {
-            res.status(403).json({ message: 'Requête non autorisée' })
-         } else {
-            try {
-               await sharp(req.file.buffer).resize(400).toFile(`./images/${req.file.originalname}`)
-            } catch (error) {
-               console.log(error, 'Error Sharp')
-            }
-            await Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
-            res.status(200).json({ message: 'Livre modifié avec succès !' })
-         }
-      } catch (error) {
-         res.status(401).json({ error })
+      if (bookObject.imageUrl) {
+         await sharp(req.file.buffer).resize(400).toFile(`./images/${req.file.originalname}`)
       }
+      await Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
+
+      return res.status(200).json({ message: 'Livre modifié avec succès !' })
    } catch (error) {
-      res.status(400).json({ error })
+      return res.status(401).json({ error })
    }
 }
 
@@ -117,22 +108,24 @@ async function deleteBook(req, res) {
    try {
       const book = await Book.findOne({ _id: req.params.id })
 
-      if (book && book.userId == req.user._id) {
-         const filename = book.imageUrl.split('/images/')[1]
-         fs.unlink(`images/${filename}`, async () => {
-            await book.deleteOne()
-            res.status(200).json({ message: 'Livre supprimé !' })
-         })
-      } else if (!book) {
-         res.status(400).json({ message: "Ce livre n'existe pas" })
-      } else {
-         res.status(403).json({ message: 'Requête non autorisée' })
+      if (!book) {
+         return res.status(404).json({ message: "Ce livre n'existe pas" })
       }
+
+      if (book.userId != req.user._id) {
+         return res.status(403).json({ message: 'Requête non autorisée' })
+      }
+
+      const filename = book.imageUrl.split('/images/')[1]
+
+      return fs.unlink(`images/${filename}`, async () => {
+         await book.deleteOne()
+         res.status(200).json({ message: 'Livre supprimé !' })
+      })
    } catch (error) {
-      res.status(400).json({ error })
+      return res.status(400).json({ error })
    }
 }
-
 /**
  * desc : Sets user rating for book matching id
  * route : POST /api/books/:id/rating
@@ -140,36 +133,32 @@ async function deleteBook(req, res) {
  * @param {*} req
  * @param {*} res
  */
-async function setBookRating(req, res, next) {
+async function setBookRating(req, res, _) {
    try {
       const book = await Book.findOne({ _id: req.params.id })
 
       if (!book) return
 
-      const oldRating = await book.ratings.find((rating) => rating.userId === req.user._id)
+      const oldRating = book.ratings.find((rating) => rating.userId === req.user._id)
 
       if (oldRating) {
          return res.status(400).json({ message: 'Note déjà présente pour cet utilisateur' })
-      } else {
-         await book.ratings.push({
-            userId: req.user._id,
-            grade: req.body.rating,
-         })
       }
 
-      const totalRatings = await book.ratings.length
-      const sumRatings = await book.ratings.reduce((sum, rating) => sum + rating.grade, 0)
-      const averageRating = Math.round(sumRatings / totalRatings)
-      book.averageRating = averageRating
+      book.ratings.push({
+         userId: req.user._id,
+         grade: req.body.rating,
+      })
 
-      try {
-         await book.save()
-         res.status(200).json(book)
-      } catch (error) {
-         res.status(400).json({ error })
-      }
+      const totalRatings = book.ratings.length
+      const sumRatings = book.ratings.reduce((sum, rating) => sum + rating.grade, 0)
+
+      book.averageRating = Math.round(sumRatings / totalRatings)
+
+      await book.save()
+      return res.status(200).json(book)
    } catch (error) {
-      res.status(400).json({ error })
+      return res.status(400).json({ error })
    }
 }
 
@@ -180,12 +169,16 @@ async function setBookRating(req, res, next) {
  * @param {*} req
  * @param {*} res
  */
-async function getHighestRatedBooks(req, res, next) {
+async function getHighestRatedBooks(_, res, _) {
    try {
       const bestBooks = await Book.find().sort({ averageRating: 'desc' }).limit(3)
-      if (bestBooks) res.status(200).json(bestBooks)
+
+      if (bestBooks) {
+         return res.status(200).json(bestBooks)
+      }
+      return res.status(404).json({ error })
    } catch (error) {
-      res.status(404).json({ error })
+      return res.status(500).json({ error })
    }
 }
 
