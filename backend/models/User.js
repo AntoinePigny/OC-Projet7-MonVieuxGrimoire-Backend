@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
+const validator = require('validator')
 
 const userSchema = mongoose.Schema(
    {
@@ -14,6 +15,16 @@ const userSchema = mongoose.Schema(
 userSchema.pre('save', async function (next) {
    if (!this.isModified('password')) {
       next()
+   }
+
+   if (!validator.isEmail(this.email)) {
+      throw Error('Email non valide')
+   }
+
+   if (!validator.isStrongPassword(this.password)) {
+      throw Error(
+         'Mot de passe trop faible, au minimum doit comporter 8 caractères et contenir 1 minuscule, 1 majuscule, un caractère spécial et un chiffre'
+      )
    }
 
    const salt = await bcrypt.genSalt(10)

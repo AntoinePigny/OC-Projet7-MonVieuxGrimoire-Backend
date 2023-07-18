@@ -10,10 +10,10 @@ const bookSchema = mongoose.Schema({
    ratings: [
       {
          userId: { type: String, required: true },
-         grade: { type: Number, required: true },
+         grade: { type: Number, min: [0, 'Pas de nombre négatif'], max: [5, 'Note trop grande'], required: true },
       },
    ],
-   averageRating: { type: Number, required: true },
+   averageRating: { type: Number, min: [0, 'Pas de nombre négatif'], max: [5, 'Moyenne trop grande'], required: true },
 })
 
 const Book = mongoose.model('Book', bookSchema)

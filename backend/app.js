@@ -4,11 +4,26 @@ const bookRoutes = require('./routes/bookRoutes')
 const { notFound, errorHandler } = require('./middleware/errorMiddleware')
 const connectDB = require('./config/db')
 const path = require('path')
+const expressMongoSanitize = require('express-mongo-sanitize')
+const rateLimit = require('express-rate-limit')
 
 connectDB()
 const app = express()
+const limiter = rateLimit({
+   windowMs: 15 * 60 * 1000,
+   max: 100,
+   standardHeaders: true,
+   legacyHeaders: false,
+})
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(
+   expressMongoSanitize({
+      allowDots: true,
+      replaceWith: '_',
+   })
+)
+app.use(limiter)
 
 app.use((req, res, next) => {
    res.setHeader('Access-Control-Allow-Origin', '*')

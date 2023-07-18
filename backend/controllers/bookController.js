@@ -1,6 +1,7 @@
 const Book = require('../models/Book')
 const fs = require('fs')
 const sharp = require('sharp')
+const path = require('path')
 const { error } = require('console')
 /**
  * desc : Returns all books
@@ -27,16 +28,17 @@ async function getBooks(_, res, _) {
  * @param {*} res
  */
 async function newBook(req, res) {
-   const { userId, averageRating, ...bookObject } = JSON.parse(req.body.book)
+   const { userId, ratings, averageRating, ...bookObject } = JSON.parse(req.body.book)
 
-   const initialAverageRating = bookObject.ratings[0].grade
    const book = new Book({
       ...bookObject,
       userId: req.user._id,
       imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.originalname}`,
-      averageRating: initialAverageRating,
+      ratings: [],
+      averageRating: 0,
    })
    try {
+      console.log(book)
       await sharp(req.file.buffer).resize(400).toFile(`./images/${req.file.originalname}`)
       await book.save()
       res.status(201).json({ message: 'Livre enregistré !' })
@@ -71,6 +73,14 @@ async function getBookById(req, res) {
  * @param {*} res
  */
 async function updateBook(req, res, _) {
+   const book = await Book.findOne({ _id: req.params.id })
+   const oldFilename = book.imageUrl.split('/images/')[1]
+   if (req.file) {
+      fs.unlink(`images/${oldFilename}`, (error) => {
+         if (error) throw error
+      })
+   }
+
    const bookObject = req.file
       ? {
            ...JSON.parse(req.body.book),
@@ -78,7 +88,6 @@ async function updateBook(req, res, _) {
         }
       : { ...req.body }
    delete bookObject.userId
-   const book = await Book.findOne({ _id: req.params.id })
 
    if (book.userId != req.user._id) {
       return res.status(403).json({ message: 'Requête non autorisée' })
