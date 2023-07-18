@@ -1,7 +1,6 @@
 const Book = require('../models/Book')
 const fs = require('fs')
 const sharp = require('sharp')
-const path = require('path')
 const { error } = require('console')
 /**
  * desc : Returns all books

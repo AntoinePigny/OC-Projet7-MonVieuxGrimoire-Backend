@@ -1,18 +1,14 @@
 const express = require('express')
-const mongoose = require('mongoose')
 const userRoutes = require('./routes/userRoutes')
 const bookRoutes = require('./routes/bookRoutes')
 const { notFound, errorHandler } = require('./middleware/errorMiddleware')
 const connectDB = require('./config/db')
-const cookieParser = require('cookie-parser')
 const path = require('path')
 
 connectDB()
 const app = express()
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-
-app.use(cookieParser())
 
 app.use((req, res, next) => {
    res.setHeader('Access-Control-Allow-Origin', '*')

@@ -4,7 +4,7 @@ function notFound(req, res, next) {
    next(error)
 }
 
-function errorHandler(err, req, res, next) {
+function errorHandler(err, _, res, _) {
    let statusCode = res.statusCode === 200 ? 500 : res.statusCode
    let message = err.message
 
